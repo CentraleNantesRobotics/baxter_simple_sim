@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+    
+    <param name="robot_description" command="$(find xacro)/xacro $(find baxter_description)/urdf/baxter.urdf.xacro" />
+    
+    <!-- Bridge node to transform high-level position and velocity commands to low-level position setpoints -->
+    <node name="simulator" pkg="baxter_simple_sim" type="arm_bridge.py" output="screen"/>
+
+    <!-- Simulator node -->
+	<!--node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+	
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find baxter_simple_sim)/baxter_config.rviz" /-->
+	
+</launch>
