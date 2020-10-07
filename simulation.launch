@@ -2,14 +2,24 @@
 <launch>
     
     <param name="robot_description" command="$(find xacro)/xacro $(find baxter_description)/urdf/baxter.urdf.xacro" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+    
+    <group ns="transforms">
+        <node name="ground_pedestal_tf" pkg="tf2_ros" type="static_transform_publisher" 
+            args="0 0 .9 0 0 0 ground base"/>
+        <node name="r_gripper_l_finger" pkg="tf2_ros" type="static_transform_publisher" 
+            args="0 0 0 0 0 0 right_gripper_base r_gripper_l_finger"/>        
+            <node name="r_gripper_l_finger_tip" pkg="tf2_ros" type="static_transform_publisher" 
+            args="0 0 0 0 0 0 right_gripper_base r_gripper_l_finger_tip"/>        
+    </group>
     
     <!-- Bridge node to transform high-level position and velocity commands to low-level position setpoints -->
-    <node name="simulator" pkg="baxter_simple_sim" type="arm_bridge.py" output="screen"/>
+    <node name="simulator" pkg="baxter_simple_sim" type="simple_sim.py" output="screen" respawn="true"/>
+    
+    <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_simple_sim)/baxter_config.rviz"/>
+    
+    
 
     <!-- Simulator node -->
-	<!--node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
-
-	
-	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find baxter_simple_sim)/baxter_config.rviz" /-->
-	
+<!-- 	<node name="baxter_bridge" pkg="baxter_simple_sim" type="bridge.py" output="screen"/>	 -->
 </launch>
