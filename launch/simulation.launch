@@ -13,13 +13,9 @@
             args="0 0 0 0 0 0 right_gripper_base r_gripper_l_finger_tip"/>        
     </group>
     
-    <!-- Bridge node to transform high-level position and velocity commands to low-level position setpoints -->
-    <node name="simulator" pkg="baxter_simple_sim" type="simple_sim.py" output="screen" respawn="true"/>
+<!--     <node name="baxter_bridge" pkg="baxter_simple_sim" type="ros2_bridge.py" respawn="true"/>     -->
+    <node name="ik_service" pkg="baxter_simple_sim" type="ik_service"  output="screen" respawn="true"/>    
+    <node name="simulator" pkg="baxter_simple_sim" type="simple_sim.py"  output="screen" respawn="true"/>    
+    <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_simple_sim)/launch/baxter_config.rviz"/>
     
-    <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_simple_sim)/baxter_config.rviz"/>
-    
-    
-
-    <!-- Simulator node -->
-<!-- 	<node name="baxter_bridge" pkg="baxter_simple_sim" type="bridge.py" output="screen"/>	 -->
 </launch>

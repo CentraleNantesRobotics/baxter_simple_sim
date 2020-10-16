@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 '''
-Created on: 12 Sep 2012
+Created on: 1 Sept 2020
 Author: Olivier Kermorgant
 
-Bridge to control arm position and velocity 
+Bridge to control arm position and velocity, simulates Baxter' kinematics
 
 Subscribes:
 - robot position or velocity command on topic /main_control/command
@@ -20,8 +20,13 @@ import message_filters
 import rospy,time,threading
 from sensor_msgs.msg import JointState
 from baxter_core_msgs.msg import JointCommand
+from baxter_core_msgs.srv import SolvePositionIK
 # math
-from pylab import arange, sign
+import numpy as np
+from numpy.linalg import norm, inv, pinv
+from urdf_parser_py.urdf import URDF
+from tf_conversions import transformations
+
 # system
 import sys,os
 
@@ -32,49 +37,33 @@ verbose = True
 T = 1./50
 
 # joint data: read URDF to get joint names and limits (position + velocity)
-urdf = rospy.get_param("/robot_description").splitlines()
-N = 0
+model = URDF.from_xml_string(rospy.get_param("/robot_description"))
 
-joint_specs = {}
-inJoint = False
-jName = ''
-for ui in urdf:
-    if inJoint:
-        if 'limit' in ui:
-            joint_specs[jName] = {}
-            s = ui.split('"')
-            for i in range(len(s)):
-                if 'lower' in s[i]:
-                    joint_specs[jName]['lower'] = float(s[i+1])
-                elif 'upper' in s[i]:
-                    joint_specs[jName]['upper'] = float(s[i+1])
-                elif 'velocity' in s[i]:
-                    joint_specs[jName]['velocity'] = T*float(s[i+1])
-            inJoint = False
-        elif 'mimic' in ui:
-            inJoint = False
-    else:
-        if 'joint name=' in ui and 'fixed' not in ui:
-                jName = ui.split('"')[1]
-                inJoint = True
-                
+class Joint:
+    def __init__(self, joint):
+        self.name = joint.name
+        self.upper = joint.limit.upper
+        self.lower = joint.limit.lower
+        self.velocity = joint.limit.velocity*T
+        
+joints = dict([(joint.name, Joint(joint)) for joint in model.joints if joint.type in ('revolute','prismatic') and joint.mimic is None])
+
 def sat(name, val):
-    return min(max(val, joint_specs[name]['lower']), joint_specs[name]['upper'])
+    return min(max(val, joints[name].lower), joints[name].upper)
 
 def sat_vel(name, val):
-    return min(max(val, -joint_specs[name]['velocity']), joint_specs[name]['velocity'])
+    return min(max(val, -joints[name].velocity), joints[name].velocity)
 
-class Joints:
+class JointGroup:
     def __init__(self, side = None):
 
-        self.side = side
-        
+        self.side = side        
         self.names = []
         
         if side is None:
-            self.names = [name for name in joint_specs if 'left' not in name and 'right' not in name]
+            self.names = [name for name in joints if 'left' not in name and 'right' not in name]
         else:
-            self.names = [name for name in joint_specs if side in name]
+            self.names = [name for name in joints if side in name]
         self.N = len(self.names)
         self.q = [0] * self.N
         self.v = [0] * self.N
@@ -86,10 +75,7 @@ class Joints:
         self.t0 = rospy.Time.now().to_sec()
         
         rospy.Subscriber('/robot/limb/{}/joint_command'.format(side), JointCommand, self.readBridgeCommand)
-                
-    def spec(self, i, prop):
-        return joint_specs[self.names[i]][prop]
-    
+
     def saturate(self, q, names = None):
         
         if names is None:    # standard ordering
@@ -99,7 +85,6 @@ class Joints:
         for i,name in enumerate(self.names):
             if name in names:
                 idx = names.index(name)
-                lower, upper = self.spec(i, 'lower'), self.spec(i, 'upper')
                 saturated.append(sat(self.names[i], q[idx]))
             else:
                 saturated.append(self.q[i])
@@ -111,20 +96,20 @@ class Joints:
         - the corresponding position lies inside the joint limits
         - no other command has been received
         '''
-
+        
         # go to qDes
         while (self.cmdCount == cmdCountCur) and not rospy.is_shutdown():
             
             # update position towards qDes
             for i in range(self.N):
-                dq = qDes[i] - self.q[i]
-                vmax = self.spec(i, 'velocity')
+                dq = qDes[i] - self.q[i]                                
+                vmax = joints[self.names[i]].velocity
                 if abs(dq) < vmax:
                     self.q[i] = qDes[i]
                     self.v[i] = 0
                 else:
-                   self.q[i] += sign(dq) * vmax
-                   self.v[i] = sign(dq) * vmax/T
+                   self.q[i] += np.sign(dq) * vmax
+                   self.v[i] = np.sign(dq) * vmax/T
             time.sleep(T)        
 
     def followVelocity(self, data, cmdCountCur):
@@ -154,11 +139,12 @@ class Joints:
         '''
         Execute command received on /robot/command topic
         '''
+        if len(data.names) != len(data.command):
+            return
       
         if self.cmdCount == 0:
             print('Switching to control mode')
-        self.cmdCount += 1
-        
+        self.cmdCount += 1        
             
         self.t0 = rospy.Time.now().to_sec()  
             
@@ -170,20 +156,17 @@ class Joints:
                 # read positions
                 thread=threading.Thread(group=None,target=self.followPosition, name=None, args=(self.saturate(data.command, data.names), self.cmdCount), kwargs={})
                 thread.start()
-            
+
 if __name__ == '__main__':
-    '''
-    Begin of main code
-    '''
-    
+
     # name of the node
     rospy.init_node('joint_control')
     
-    elements = [Joints('left'), Joints('right'), Joints()]
+    elements = [JointGroup('left'), JointGroup('right'), JointGroup()]
 
     print('Waiting commands')
     
-    state_pub = rospy.Publisher('/joint_states', JointState, queue_size = 1)
+    state_pub = rospy.Publisher('/robot/joint_states', JointState, queue_size = 1)
     
     joint_states = JointState()
     joint_states.name = sum([elem.names for elem in elements], [])
