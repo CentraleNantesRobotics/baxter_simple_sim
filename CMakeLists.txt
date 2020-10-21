@@ -33,6 +33,6 @@ catkin_package(
 
 install(PROGRAMS ik_service DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-catkin_install_python(PROGRAMS ros2_bridge.py
+catkin_install_python(PROGRAMS ros2_bridge.py simple_sim.py
                       DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
                       

@@ -2,7 +2,7 @@
 <launch>
     
     <param name="robot_description" command="$(find xacro)/xacro $(find baxter_description)/urdf/baxter.urdf.xacro" />
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen" ns="/robot"/>
     
     <group ns="transforms">
         <node name="ground_pedestal_tf" pkg="tf2_ros" type="static_transform_publisher" 

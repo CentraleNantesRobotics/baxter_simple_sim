@@ -72,7 +72,7 @@ class ArmRelay:
         self.command_pub.publish(self.msg1)      
 
 # /joint_states relay 1 -> 2
-state_pub = node.create_publisher(JointState2, 'joint_states', 10)
+state_pub = node.create_publisher(JointState2, '/robot/joint_states', 10)
 
 # callback functions
 def state_callback(msg1):
@@ -85,7 +85,7 @@ def state_callback(msg1):
     msg2.header.stamp = node.get_clock().now().to_msg()
     state_pub.publish(msg2)
     
-state_sub = rospy.Subscriber('joint_states', JointState1, state_callback)
+state_sub = rospy.Subscriber('/robot/joint_states', JointState1, state_callback)
 
 # command relay 2 -> 1
 left_relay = ArmRelay('left')
