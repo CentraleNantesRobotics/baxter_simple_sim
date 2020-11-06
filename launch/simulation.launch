@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
     
+    <arg name="rviz" default="true"/>
+    
     <param name="robot_description" command="$(find xacro)/xacro $(find baxter_description)/urdf/baxter.urdf.xacro" />
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen" ns="/robot"/>
     
@@ -16,6 +18,6 @@
 <!--     <node name="baxter_bridge" pkg="baxter_simple_sim" type="ros2_bridge.py" respawn="true"/>     -->
     <node name="ik_service" pkg="baxter_simple_sim" type="ik_service"  output="screen" respawn="true"/>    
     <node name="simulator" pkg="baxter_simple_sim" type="simple_sim.py"  output="screen" respawn="true"/>    
-    <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_simple_sim)/launch/baxter_config.rviz"/>
+    <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_simple_sim)/launch/baxter_config.rviz" if="$(arg rviz)"/>
     
 </launch>

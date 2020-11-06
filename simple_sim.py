@@ -30,7 +30,6 @@ from tf_conversions import transformations
 # system
 import sys,os
 
-
 verbose = True
 
 # low-level sampling time
