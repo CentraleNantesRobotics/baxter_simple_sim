@@ -11,6 +11,8 @@ Subscribes:
 
 Publishes:
 - robot joint positions commands on topic /joint_control/command (position control)
+
+If lab param is in (puppet, mirror), right arm moves autonomously
 '''
 
 # modules
@@ -20,7 +22,9 @@ import message_filters
 import rospy,time,threading
 from sensor_msgs.msg import JointState
 from baxter_core_msgs.msg import JointCommand
-from baxter_core_msgs.srv import SolvePositionIK
+from baxter_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest, SolvePositionIKResponse
+from geometry_msgs.msg import PoseStamped
+
 # math
 import numpy as np
 from numpy.linalg import norm, inv, pinv
@@ -54,7 +58,7 @@ def sat_vel(name, val):
     return min(max(val, -joints[name].velocity), joints[name].velocity)
 
 class JointGroup:
-    def __init__(self, side = None):
+    def __init__(self, side = None, lab = None):
 
         self.side = side        
         self.names = []
@@ -73,7 +77,21 @@ class JointGroup:
         self.cmdCount = 0
         self.t0 = rospy.Time.now().to_sec()
         
-        rospy.Subscriber('/robot/limb/{}/joint_command'.format(side), JointCommand, self.readBridgeCommand)
+        if lab is None:
+            rospy.Subscriber('/robot/limb/{}/joint_command'.format(side), JointCommand, self.readBridgeCommand)
+        elif lab == 'mirror' and side == 'right':
+            thread=threading.Thread(group=None,target=self.mirrorMove, name=None, kwargs={})
+            thread.start()
+        elif lab == 'puppet':
+            if side == 'left':
+                self.q = [-0.10266471341792811, -0.05772519794064627, -0.36909985265803286, 0.7955637684523007, -1.1302109919350245, 2.0871143114989947, 2.559173568111138]
+                return
+            
+            # init right arm IK service
+            self.q = [0.05183482296524736, -0.8682037556901855, 0.9476424476835772, 1.685625905154571, 0.7588301888902473, 0.999285765226626, -0.3354836773966444]
+                
+            thread=threading.Thread(group=None,target=self.puppetMove, name=None, kwargs={})
+            thread.start()
 
     def saturate(self, q, names = None):
         
@@ -88,6 +106,59 @@ class JointGroup:
             else:
                 saturated.append(self.q[i])
         return saturated 
+    
+    def mirrorMove(self):
+        low = [joints[name].lower for name in self.names]
+        up = [joints[name].upper for name in self.names]
+        mid = [.5*(low[i]+up[i]) for i in range(self.N)]
+        rng = [up[i]-mid[i] for i in range(self.N)]
+        
+        t = 0
+        while not rospy.is_shutdown():
+            for i in range(self.N):
+                self.q[i] = mid[i] + 0.1*(i+1)*rng[i]*np.cos(0.1*(i+2)*t)
+            time.sleep(T)
+            t += T
+        
+    def puppetMove(self):
+        print('init puppet move')
+        
+        rospy.wait_for_service('/ExternalTools/right/PositionKinematicsNode/IKService')
+        ik = rospy.ServiceProxy('/ExternalTools/right/PositionKinematicsNode/IKService', SolvePositionIK)
+        
+        req = SolvePositionIKRequest()
+        req.seed_mode = 0
+        req.pose_stamp = [PoseStamped()]
+    
+        M0 = transformations.quaternion_matrix((0.031, 0.808,.587,0.028))
+        M0[0,3] = 0.7
+        M0[1,3] = -0.137
+        M0[2,3] = 0.357
+        
+        t = 0
+        while not rospy.is_shutdown():
+            # variation around work pose
+            Md = transformations.euler_matrix(.1*np.cos(t), .1*np.sin(t/2), .05*np.cos(t+4))
+            Md[0,3] = 0.05*np.cos(t/2.)
+            Md[1,3] = 0.1*np.sin(t/2)
+            Md[2,3] = 0.2*np.cos(t/2)
+            M = np.dot(M0, Md)
+
+            req.pose_stamp[0].pose.position.x = M[0,3]
+            req.pose_stamp[0].pose.position.y = M[1,3]
+            req.pose_stamp[0].pose.position.z = M[2,3]
+            
+            q = transformations.quaternion_from_matrix(M)
+            q = q/np.linalg.norm(q)
+            req.pose_stamp[0].pose.orientation.x = q[0]
+            req.pose_stamp[0].pose.orientation.y = q[1]
+            req.pose_stamp[0].pose.orientation.z = q[2]
+            req.pose_stamp[0].pose.orientation.w = q[3]   
+            req.pose_stamp[0].header.stamp = rospy.Time.now()
+            
+            self.q = list(ik(req).joints[0].position)
+            time.sleep(T)
+            t += T
 
     def followPosition(self, qDes, cmdCountCur):
         '''
@@ -161,7 +232,13 @@ if __name__ == '__main__':
     # name of the node
     rospy.init_node('joint_control')
     
-    elements = [JointGroup('left'), JointGroup('right'), JointGroup()]
+    lab = None
+    if rospy.has_param('~lab'):
+        lab = rospy.get_param('~lab')
+        if lab not in ('puppet', 'mirror'):
+            lab = None
+    
+    elements = [JointGroup('left', lab), JointGroup('right', lab), JointGroup()]
 
     print('Waiting commands')
     

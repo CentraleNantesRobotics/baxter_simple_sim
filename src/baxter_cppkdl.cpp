@@ -16,7 +16,7 @@ baxter_kinematics::baxter_kinematics(ros::NodeHandle&node, std::string _limb)
   if(!joint_states.name.size())
   {
     joint_states.name.resize(1);
-    js_sub = node.subscribe("/joint_states", 100, &baxter_kinematics::jointStateCallback);
+    js_sub = node.subscribe("/robot/joint_states", 100, &baxter_kinematics::jointStateCallback);
   }
 
   ros::Rate wait(1);
@@ -52,7 +52,7 @@ baxter_kinematics::baxter_kinematics(ros::NodeHandle&node, std::string _limb)
 
 bool baxter_kinematics::processIK(baxter_core_msgs::SolvePositionIKRequest &req, baxter_core_msgs::SolvePositionIKResponse &res)
 {
-  if(req.seed_mode == req.SEED_AUTO || req.seed_mode == req.SEED_CURRENT)
+  if(req.seed_mode != req.SEED_AUTO && req.seed_mode != req.SEED_CURRENT)
     return false;
 
   // build response and parse current joint state angles
