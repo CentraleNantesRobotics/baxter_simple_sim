@@ -77,12 +77,13 @@ class JointGroup:
         self.cmdCount = 0
         self.t0 = rospy.Time.now().to_sec()
         
-        if lab is None:
+        if lab is None or side == 'left':
             rospy.Subscriber('/robot/limb/{}/joint_command'.format(side), JointCommand, self.readBridgeCommand)
         elif lab == 'mirror' and side == 'right':
             thread=threading.Thread(group=None,target=self.mirrorMove, name=None, kwargs={})
             thread.start()
-        elif lab == 'puppet':
+        
+        if lab == 'puppet':
             if side == 'left':
                 self.q = [-0.10266471341792811, -0.05772519794064627, -0.36909985265803286, 0.7955637684523007, -1.1302109919350245, 2.0871143114989947, 2.559173568111138]
                 return
@@ -166,6 +167,8 @@ class JointGroup:
         - the corresponding position lies inside the joint limits
         - no other command has been received
         '''
+        
+        print('Got position request: {}'.format(qDes))
         
         # go to qDes
         while (self.cmdCount == cmdCountCur) and not rospy.is_shutdown():

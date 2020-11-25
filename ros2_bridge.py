@@ -161,16 +161,20 @@ class ArmRelay:
             return res
         
         # write ROS 1 request
-        print('To ROS 1')
-        #self.ik_req1.pose_stamp[0].position.x = 
-        for field,axes in (('position','xyz'), ('orientation','xyzw')):
-            for ax in axes:
-                value = getattr(getattr(req.pose_stamp[0].pose, field), ax)
-                setattr(getattr(self.ik_req1.pose_stamp[0].pose, field), ax, value)
+        self.ik_req1.pose_stamp[0].pose.position.x = req.pose_stamp[0].pose.position.x
+        self.ik_req1.pose_stamp[0].pose.position.y = req.pose_stamp[0].pose.position.y
+        self.ik_req1.pose_stamp[0].pose.position.z = req.pose_stamp[0].pose.position.z
+        self.ik_req1.pose_stamp[0].pose.orientation.x = req.pose_stamp[0].pose.orientation.x
+        self.ik_req1.pose_stamp[0].pose.orientation.y = req.pose_stamp[0].pose.orientation.y
+        self.ik_req1.pose_stamp[0].pose.orientation.z = req.pose_stamp[0].pose.orientation.z
+        self.ik_req1.pose_stamp[0].pose.orientation.w = req.pose_stamp[0].pose.orientation.w
+        
+        print('To ROS 1: {}'.format(self.ik_req1.pose_stamp[0]))
+
         # call ROS 1 service
         print('calling')
         res1 = self.ik_client1(self.ik_req1)
-        print('to ROS 2')
+        print('to ROS 2, got {}'.format(res1))
         # write ROS 2 response
         solution = JointState2()
         solution.name = res1.joints[0].name

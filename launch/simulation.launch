@@ -16,7 +16,7 @@
             args="0 0 0 0 0 0 right_gripper_base r_gripper_l_finger_tip"/>        
     </group>
     
-<!--     <node name="ros2_bridge" pkg="baxter_simple_sim" type="ros2_bridge.py" output="screen" />     -->
+    <node name="ros2_bridge" pkg="baxter_simple_sim" type="ros2_bridge.py" output="screen" /> 
     <node name="ik_service" pkg="baxter_simple_sim" type="ik_service"  output="screen" respawn="true"/>    
     <node name="simulator" pkg="baxter_simple_sim" type="simple_sim.py"  output="screen" respawn="true">    
         <param name="lab" value="$(arg lab)"/>
