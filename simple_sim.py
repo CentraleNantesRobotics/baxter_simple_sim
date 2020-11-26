@@ -138,7 +138,7 @@ class JointGroup:
         
         t = 0
         while not rospy.is_shutdown():
-            # variation around work pose
+            # variation around work pose            
             Md = transformations.euler_matrix(.1*np.cos(t), .1*np.sin(t/2), .05*np.cos(t+4))
             Md[0,3] = 0.05*np.cos(t/2.)
             Md[1,3] = 0.1*np.sin(t/2)
@@ -167,9 +167,7 @@ class JointGroup:
         - the corresponding position lies inside the joint limits
         - no other command has been received
         '''
-        
-        print('Got position request: {}'.format(qDes))
-        
+                
         # go to qDes
         while (self.cmdCount == cmdCountCur) and not rospy.is_shutdown():
             

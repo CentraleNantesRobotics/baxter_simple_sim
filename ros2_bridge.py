@@ -155,12 +155,12 @@ class ArmRelay:
         self.command_pub.publish(self.msg1)
         
     def ik_callback(self, req, res):
-        print('Got request {}'.format(req))
         
         if len(req.pose_stamp) == 0:
             return res
         
         # write ROS 1 request
+        self.ik_req1.seed_mode = req.seed_mode
         self.ik_req1.pose_stamp[0].pose.position.x = req.pose_stamp[0].pose.position.x
         self.ik_req1.pose_stamp[0].pose.position.y = req.pose_stamp[0].pose.position.y
         self.ik_req1.pose_stamp[0].pose.position.z = req.pose_stamp[0].pose.position.z
@@ -169,19 +169,20 @@ class ArmRelay:
         self.ik_req1.pose_stamp[0].pose.orientation.z = req.pose_stamp[0].pose.orientation.z
         self.ik_req1.pose_stamp[0].pose.orientation.w = req.pose_stamp[0].pose.orientation.w
         
-        print('To ROS 1: {}'.format(self.ik_req1.pose_stamp[0]))
-
+        if len(req.seed_angles):
+            self.ik_req1.seed_angles = [JointState1()]
+            self.ik_req1.seed_angles[0].name = req.seed_angles[0].name
+            self.ik_req1.seed_angles[0].position = req.seed_angles[0].position
+        
         # call ROS 1 service
-        print('calling')
         res1 = self.ik_client1(self.ik_req1)
-        print('to ROS 2, got {}'.format(res1))
         # write ROS 2 response
-        solution = JointState2()
-        solution.name = res1.joints[0].name
-        solution.position = res1.joints[0].position
-        res.joints = [solution]
-        res.is_valid = [res1.isValid[0]]
-        print('return {}'.format(res))
+        if len(res1.joints) and len(res1.isValid):
+            solution = JointState2()
+            solution.name = res1.joints[0].name
+            solution.position = res1.joints[0].position
+            res.joints = [solution]
+            res.is_valid = [res1.isValid[0]]
         return res
 
 # /joint_states relay 1 -> 2

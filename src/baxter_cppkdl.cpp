@@ -52,12 +52,14 @@ baxter_kinematics::baxter_kinematics(ros::NodeHandle&node, std::string _limb)
 
 bool baxter_kinematics::processIK(baxter_core_msgs::SolvePositionIKRequest &req, baxter_core_msgs::SolvePositionIKResponse &res)
 {
-  if(req.seed_mode != req.SEED_AUTO && req.seed_mode != req.SEED_CURRENT)
+  if(req.seed_mode == req.SEED_NS_MAP)
     return false;
 
-  // build response and parse current joint state angles
+  // build response and seed if needed
   sensor_msgs::JointState joints;
-  double q[7];
+  joints.position.resize(7, 0);
+
+  double seed[7];
   size_t jIdx = 0;
   for(const auto &name: names)
   {
@@ -66,15 +68,12 @@ bool baxter_kinematics::processIK(baxter_core_msgs::SolvePositionIKRequest &req,
     auto idx = std::distance(joint_states.name.begin(),
                              std::find(joint_states.name.begin(), joint_states.name.end(),
                                        name));
-    q[jIdx] = joint_states.position[idx];
+    seed[jIdx] = joint_states.position[idx];
     jIdx++;
   }
-  joints.position.resize(7, 0);
 
   double position[3];
   double orientation[4];
-  double seed[7];
-
 
   std::array<double, 7> result;
 
@@ -92,7 +91,7 @@ bool baxter_kinematics::processIK(baxter_core_msgs::SolvePositionIKRequest &req,
     if(req.seed_mode == req.SEED_USER)
       std::copy(req.seed_angles[step].position.begin(), req.seed_angles[step].position.begin()+7, seed);
     else
-      std::copy(q, q+7, seed);
+      std::copy(seed, seed+7, seed);
 
     const auto success = inverse_kinematics_function(result, position, orientation, seed);
     std::copy(result.begin(), result.end(), joints.position.begin());
