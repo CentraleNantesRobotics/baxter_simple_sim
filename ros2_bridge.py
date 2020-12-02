@@ -135,18 +135,22 @@ node = rclpy.create_node('baxter_bridge')
 class ArmRelay:
     def __init__(self, side):
         self.side = side
-        self.command_pub = rospy.Publisher('/robot/limb/{}/joint_command'.format(side), JointCommand1, queue_size=1)        
+        self.command_pub = rospy.Publisher('/robot/limb/{}/joint_command'.format(side), JointCommand1, queue_size=1)
         self.command_sub = node.create_subscription(JointCommand2, '/robot/limb/{}/joint_command'.format(side), self.command_callback, 10)
         self.msg1 = JointCommand1()
+                
         service_name = '/ExternalTools/{}/PositionKinematicsNode/IKService'.format(side)
         
-        rospy.wait_for_service(service_name)
-        self.ik_client1 = rospy.ServiceProxy(service_name, SolvePositionIK1)
-        self.ik_req1 = SolvePositionIKRequest1()
-        self.ik_req1.seed_mode = 0
-        self.ik_req1.pose_stamp = [PoseStamped1()]
-        
-        self.ik_server2 = node.create_service(SolvePositionIK2, service_name, self.ik_callback)
+        try:   
+            rospy.wait_for_service(service_name, 2)
+            self.ik_client1 = rospy.ServiceProxy(service_name, SolvePositionIK1)
+            self.ik_req1 = SolvePositionIKRequest1()
+            self.ik_req1.seed_mode = 0
+            self.ik_req1.pose_stamp = [PoseStamped1()]
+            
+            self.ik_server2 = node.create_service(SolvePositionIK2, service_name, self.ik_callback)
+        except:
+            pass
         
     def command_callback(self, msg2):
         self.msg1.mode = msg2.mode
@@ -210,7 +214,6 @@ try:
     right_relay = ArmRelay('right')
 
     rate = rospy.Rate(50)
-
 
     def signal_handler(sig, frame):
         global stop
