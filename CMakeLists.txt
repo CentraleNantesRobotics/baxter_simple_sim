@@ -35,8 +35,6 @@ install(TARGETS simulator
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME})
   
-install(PROGRAMS simple_sim.py DESTINATION lib/${PROJECT_NAME})
-
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
  
 ament_package()

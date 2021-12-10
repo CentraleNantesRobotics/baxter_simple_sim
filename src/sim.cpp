@@ -10,7 +10,6 @@ int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
 
-  //rclcpp::executors::SingleThreadedExecutor exec;
   rclcpp::executors::MultiThreadedExecutor exec;
 
   auto motion{Motion::CMD};
@@ -20,8 +19,6 @@ int main(int argc, char** argv)
     if(arg == "mirror") motion = Motion::MIRROR;
     else if(arg == "puppet") motion = Motion::PUPPET;
   }
-
-  motion = Motion::PUPPET;
 
   auto sim{std::make_shared<BaxterSim>(motion)};
   sim->addNodesTo(exec);
