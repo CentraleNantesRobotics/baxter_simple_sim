@@ -85,21 +85,19 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
 
 void BaxterArmIO::processIK(IKReq req, IKRes res)
 {
-  // build response and seed if needed
-  std::lock_guard lk(state_mtx);
-
-  // assume SEED_CURRENT
-  auto seed{state.position};
+  // default seed from current position (SEED_CURRENT)
+  std::vector<double> seed;
+  {
+    std::lock_guard lk(state_mtx);
+    seed = state.position;
+  }
 
   const auto dim{req->pose_stamp.size()};
   const auto seeds{req->seed_angles.size()};
 
   if(req->seed_mode == req->SEED_AUTO)
   {
-    if(seeds == 0)
-      req->seed_mode = req->SEED_NS_MAP;
-    else if(dim == seeds)
-      req->seed_mode = req->SEED_USER;
+    req->seed_mode = dim == seeds ? req->SEED_USER : req->SEED_NS_MAP;
   }
 
   res->joints.resize(dim);
@@ -121,7 +119,7 @@ void BaxterArmIO::processIK(IKReq req, IKRes res)
             && step != 0
             && res->is_valid[step-1])
     {
-      // seed from previous solution
+      // seed from previous solution if valid
       seed = res->joints[step-1].position;
     }
 
