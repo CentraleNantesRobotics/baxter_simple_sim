@@ -8,8 +8,6 @@
 #include <baxter_core_msgs/msg/joint_command.hpp>
 #include <urdf/model.h>
 
-#include <tf2_ros/transform_broadcaster.h>
-
 namespace baxter_simple_sim
 {
 
@@ -40,7 +38,7 @@ public:
 
   inline void update(std::vector<double>::iterator in_full_state, double t = 0)
   {
-    std::lock_guard<std::mutex> locks(state_mtx), lockc(cmd_mtx);
+    std::scoped_lock lock(state_mtx, cmd_mtx);
     switch (motion)
     {
     case Motion::CMD:
@@ -74,7 +72,6 @@ private:
   rclcpp::Service<baxter_core_msgs::srv::SolvePositionIK>::SharedPtr ik_service;
 
   KDL::Chain arm_chain;
-  tf2_ros::TransformBroadcaster ik_br;
   std::vector<double> inverseKinematics(KDL::Vector pos, KDL::Rotation rot, const std::vector<double> &seed);
 
   void updateCmd();

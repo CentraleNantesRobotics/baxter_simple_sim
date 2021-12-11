@@ -31,7 +31,7 @@ void updateSeed(const vector<std::string> &names,
 }
 
 BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::string limb, Motion motion)
-  : Node(limb + "_ik_solver"), motion{motion}, limb{limb}, ik_br{this}
+  : Node(limb + "_ik_solver"), motion{motion}, limb{limb}
 {
   // ensure name ordering for IK
   state.name = {"s0", "s1", "e0", "e1", "w0", "w1", "w2"};
@@ -40,10 +40,11 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
 
   if(motion == Motion::PUPPET)
   {
+    // singularity-free configuration for IK
     if(limb == "left")
     {
-      state.position = {-0.05183482296524736, -0.8682037556901855, -0.9476424476835772, 1.685625905154571, -0.7588301888902473, 0.999285765226626, 0.3354836773966444};
-      //state.position = {-0.10266471341792811, -0.05772519794064627, -0.36909985265803286, 0.7955637684523007, -1.1302109919350245, 1.0871143114989947, 0};
+      //state.position = {-0.05183482296524736, -0.8682037556901855, -0.9476424476835772, 1.685625905154571, -0.7588301888902473, 0.999285765226626, 0.3354836773966444};
+      state.position = {-0.10266471341792811, -0.05772519794064627, -0.36909985265803286, 0.7955637684523007, -1.1302109919350245, 1.0871143114989947, 0};
     }
     else
       state.position = {0.05183482296524736, -0.8682037556901855, 0.9476424476835772, 1.685625905154571, 0.7588301888902473, 0.999285765226626, -0.3354836773966444};
@@ -66,7 +67,7 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
     const auto topic{"/robot/limb/" + limb + "/joint_command"};
     cmd_sub = node->create_subscription<msg::JointCommand>
               (topic, 10, [this](msg::JointCommand::SharedPtr msg)
-    {std::lock_guard<std::mutex> lk(cmd_mtx);last_cmd = *msg;});
+    {std::lock_guard lk(cmd_mtx);last_cmd = *msg;});
   }
 
   // init chain from kdl tree
@@ -85,7 +86,7 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
 void BaxterArmIO::processIK(IKReq req, IKRes res)
 {
   // build response and seed if needed
-  std::lock_guard<std::mutex> lk(state_mtx);
+  std::lock_guard lk(state_mtx);
 
   // assume SEED_CURRENT
   auto seed{state.position};
@@ -142,30 +143,6 @@ void BaxterArmIO::processIK(IKReq req, IKRes res)
 
 std::vector<double> BaxterArmIO::inverseKinematics(KDL::Vector pos, KDL::Rotation rot, const std::vector<double> &seed)
 {  
-  // display this request
-  if(false)
-  {
-    std::cout << "IK request with seed :\n";
-    for(size_t i = 0; i < 7; ++i)
-    {
-      std::cout << " - " << seed[i] << " vs " << state.position[i] << std::endl;
-    }
-
-    geometry_msgs::msg::TransformStamped tf;
-    tf.header.stamp = get_clock()->now();
-    tf.header.frame_id = "base";
-    tf.child_frame_id = limb + "_request";
-
-    tf.transform.translation.x = pos.x();
-    tf.transform.translation.y = pos.y();
-    tf.transform.translation.z = pos.z();
-    rot.GetQuaternion(tf.transform.rotation.x,
-                      tf.transform.rotation.y,
-                      tf.transform.rotation.z,
-                      tf.transform.rotation.w);
-    ik_br.sendTransform(tf);
-  }
-
   ChainFkSolverPos_recursive fksolver(arm_chain);
   ChainIkSolverVel_pinv iksolver_v(arm_chain);
   ChainIkSolverPos_NR iksolver_p(arm_chain,fksolver,iksolver_v);
