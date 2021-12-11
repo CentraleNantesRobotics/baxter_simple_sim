@@ -204,25 +204,26 @@ void BaxterArmIO::updateCmd()
     const auto cmd{last_cmd.command[i]};
 
     // what velocity this joint should get
-    vel = 0;
-    if(vel_mode)
-      vel = std::clamp(cmd, -vel_max[idx], vel_max[idx]);
-    else
-    {
-      const auto err{cmd - pos};
-      if(std::abs(err) < 1e-3) vel = 0;
-      else if(err > 0) vel = vel_max[idx];
-      else vel = -vel_max[idx];
-
-      // do not go too far in case of small error
-      if(std::abs(vel*dt) > std::abs(err))
-        vel = err/dt;
-    }
+    vel = std::clamp(vel_mode ? cmd : (cmd-pos)/dt,
+                     -vel_max[idx],
+                     vel_max[idx]);
 
     // ensure joint limits
-    const auto fut_pos = std::clamp(pos + vel*dt, lower[idx], upper[idx]);
-    vel = (fut_pos-pos)/dt;
-    pos = fut_pos;
+    const auto fut_pos{pos + vel*dt};
+    if(fut_pos > upper[idx])
+    {
+      vel = (upper[idx]-pos)/dt;
+      pos = upper[idx];
+    }
+    else if(fut_pos < lower[idx])
+    {
+      vel = (lower[idx]-pos)/dt;
+      pos = lower[idx];
+    }
+    else
+    {
+      pos = fut_pos;
+    }
   }
 }
 
