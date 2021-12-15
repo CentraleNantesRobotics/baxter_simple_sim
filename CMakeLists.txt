@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.15)
 project(baxter_simple_sim)
 
 find_package(Eigen3 REQUIRED)
@@ -37,10 +37,7 @@ install(TARGETS ik_service
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
  
-install(DIRECTORY launch/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
-  PATTERN ".svn" EXCLUDE)
-
+install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 catkin_install_python(PROGRAMS ros2_bridge.py simple_sim.py
                       DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

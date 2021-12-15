@@ -114,7 +114,7 @@ void baxter_kinematics::jointStateCallback(const sensor_msgs::JointState& mMsg)
 
 bool baxter_kinematics::inverse_kinematics_function(std::array<double, 7> &result, double position[3], double orientation[4] = NULL, double seed[7]=NULL)
 {
-  ChainFkSolverPos_recursive fksolver = ChainFkSolverPos_recursive(arm_chain);
+  ChainFkSolverPos_recursive fksolver = ChainFkSolverPos_recursive(arm_chain);    
   ChainIkSolverVel_pinv iksolver_v = 	ChainIkSolverVel_pinv(arm_chain);
   ChainIkSolverPos_NR iksolver_p = ChainIkSolverPos_NR(arm_chain,fksolver,iksolver_v);
   KDL::Vector pos = Vector(position[0],position[1],position[2]);

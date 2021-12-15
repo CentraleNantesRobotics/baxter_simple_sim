@@ -172,6 +172,8 @@ class ArmRelay:
         self.ik_req1.pose_stamp[0].pose.orientation.y = req.pose_stamp[0].pose.orientation.y
         self.ik_req1.pose_stamp[0].pose.orientation.z = req.pose_stamp[0].pose.orientation.z
         self.ik_req1.pose_stamp[0].pose.orientation.w = req.pose_stamp[0].pose.orientation.w
+        self.ik_req1.pose_stamp[0].header.frame_id = req.pose_stamp[0].header.frame_id;
+        self.ik_req1.pose_stamp[0].header.stamp = rospy.Time.now()
         
         if len(req.seed_angles):
             self.ik_req1.seed_angles = [JointState1()]

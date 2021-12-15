@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+                      
+    <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_simple_sim)/launch/baxter_config.rviz"/>
+    <group ns="transforms">
+        <node name="ground_pedestal_tf" pkg="tf2_ros" type="static_transform_publisher" 
+            args="0 0 .9 0 0 0 ground base"/>
+        <node name="r_gripper_l_finger" pkg="tf2_ros" type="static_transform_publisher" 
+            args="0 0 0 0 0 0 right_gripper_base r_gripper_l_finger"/>        
+            <node name="r_gripper_l_finger_tip" pkg="tf2_ros" type="static_transform_publisher" 
+            args="0 0 0 0 0 0 right_gripper_base r_gripper_l_finger_tip"/>        
+    </group>
+    
+</launch>
