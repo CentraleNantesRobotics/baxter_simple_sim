@@ -12,7 +12,7 @@ BaxterSim::BaxterSim(Motion motion) : Node("simulator")
   // get baxter description
   const auto model{initRSP()};
 
-  for(const auto &[name, joint]: model.joints_)
+  for(const auto &[name, joint]: model->joints_)
   {
     if(joint->type != urdf::Joint::FIXED)
     {
@@ -27,14 +27,14 @@ BaxterSim::BaxterSim(Motion motion) : Node("simulator")
   torso_joints = state.name.size();
 
   // init joint groups
-  left = std::make_shared<BaxterArmIO>(this, model, "left", motion);
-  right = std::make_shared<BaxterArmIO>(this, model, "right", motion);
+  left = std::make_shared<BaxterArmIO>(this, *model, "left", motion);
+  right = std::make_shared<BaxterArmIO>(this, *model, "right", motion);
 
   state.position.resize(torso_joints+14, 0);
   state.velocity.resize(torso_joints+14, 0);
-  for(const auto name: left->jointNames())
+  for(const auto &name: left->jointNames())
     state.name.push_back(name);
-  for(const auto name: right->jointNames())
+  for(const auto &name: right->jointNames())
     state.name.push_back(name);
 
   js_pub = create_publisher<sensor_msgs::msg::JointState>("/robot/joint_states", 10);
@@ -47,7 +47,7 @@ BaxterSim::BaxterSim(Motion motion) : Node("simulator")
   sim_timer = create_wall_timer(BaxterArmIO::samplingTime(), [&](){updateSim();});
 }
 
-urdf::Model BaxterSim::initRSP()
+std::unique_ptr<urdf::Model> BaxterSim::initRSP()
 {
   std::string xml_string;
   const auto description_file{ament_index_cpp::get_package_share_directory("baxter_description")
@@ -77,8 +77,8 @@ urdf::Model BaxterSim::initRSP()
               };
   rsp = std::make_shared<robot_state_publisher::RobotStatePublisher>(rsp_arg);
 
-  urdf::Model model;
-  model.initString(xml_string);
+  auto model{std::make_unique<urdf::Model>()};
+  model->initString(xml_string);
   return model;
 }
 

@@ -32,7 +32,7 @@ private:
 
   Motion right_motion;
 
-  urdf::Model initRSP();
+  std::unique_ptr<urdf::Model> initRSP();
 
   rclcpp::TimerBase::SharedPtr sim_timer, pub_timer;
   void updateSim();
