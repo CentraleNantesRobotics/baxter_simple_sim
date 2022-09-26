@@ -49,36 +49,34 @@ BaxterSim::BaxterSim(Motion motion) : Node("simulator")
 
 std::unique_ptr<urdf::Model> BaxterSim::initRSP()
 {
-  std::string xml_string;
-  const auto description_file{ament_index_cpp::get_package_share_directory("baxter_description")
-        + "/urdf/baxter.urdf"};
-  std::fstream xml_file(description_file.c_str(), std::fstream::in);
-  while ( xml_file.good() )
-  {
-    std::string line;
-    std::getline( xml_file, line);
-    xml_string += (line + "\n");
-  }
-  xml_file.close();
+  const auto baxter_folder = ament_index_cpp::get_package_share_directory("baxter_description");
+  const auto description_file{baxter_folder + "/urdf/baxter.urdf.xacro"};
 
-  // init rsp with special options
-  const std::string rsp_param_file{"/tmp/baxter_description.yaml"};
-  std::ofstream description_stream;
-  description_stream.open(rsp_param_file.c_str());
-  description_stream << "/robot/robot_state_publisher:\n"
-                     << "  ros__parameters:\n"
-                     << "    robot_description: '"
-                     << xml_string << "'\n";
-  description_stream.close();
+  // yes we still have to process a command output in 2022
+  FILE * stream;
+  const int max_buffer = 256;
+  std::string cmd{"xacro "};
+  cmd += description_file;
+  stream = popen(cmd.c_str(), "r");
+  std::string xml;
+
+  if (stream)
+  {
+    while (!feof(stream))
+    {
+      char buffer[max_buffer];
+      if (fgets(buffer, max_buffer, stream) != NULL) xml.append(buffer);
+    }
+    pclose(stream);
+  }
 
   // override rsp's options
   auto rsp_arg{rclcpp::NodeOptions()
-        .arguments({"--ros-args", "-r", "__ns:=/robot", "--params-file", rsp_param_file})
-              };
+        .arguments({"--ros-args", "-r", "__ns:=/robot", "-p", "robot_description:=" + xml})};
   rsp = std::make_shared<robot_state_publisher::RobotStatePublisher>(rsp_arg);
 
   auto model{std::make_unique<urdf::Model>()};
-  model->initString(xml_string);
+  model->initString(xml);
   return model;
 }
 

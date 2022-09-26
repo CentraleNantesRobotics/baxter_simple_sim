@@ -66,7 +66,7 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
   {
     const auto topic{"/robot/limb/" + limb + "/joint_command"};
     cmd_sub = node->create_subscription<msg::JointCommand>
-              (topic, 10, [this](msg::JointCommand::SharedPtr msg)
+        (topic, 10, [this](msg::JointCommand::SharedPtr msg)
     {std::lock_guard lk(cmd_mtx);last_cmd = *msg;});
   }
 
