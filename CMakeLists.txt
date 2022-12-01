@@ -16,10 +16,23 @@ find_package(sensor_msgs REQUIRED)
 find_package(baxter_core_msgs REQUIRED)
 find_package(urdf REQUIRED)
 find_package(robot_state_publisher REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 find_package(Eigen3 REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
+
+rosidl_generate_interfaces(${PROJECT_NAME} "srv/Jacobian.srv" DEPENDENCIES builtin_interfaces)
+
+
+if("$ENV{ROS_DISTRO}" STREQUAL "galactic" OR "$ENV{ROS_DISTRO}" STREQUAL "foxy")
+    set(LEGACY_IDL TRUE)
+else()
+    set(LEGACY_IDL FALSE)
+endif()
+if(NOT ${LEGACY_IDL})
+    rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
+endif()
 
 add_executable(simulator
     src/sim_node.cpp
@@ -28,6 +41,11 @@ add_executable(simulator
 target_include_directories(simulator PRIVATE include ${Eigen3_INCLUDE_DIRS})
 ament_target_dependencies(simulator
     rclcpp sensor_msgs baxter_core_msgs urdf kdl_parser robot_state_publisher)
+if(${LEGACY_IDL})
+    rosidl_target_interfaces(simulator ${PROJECT_NAME} "rosidl_typesupport_cpp")
+else()
+    target_link_libraries(simulator "${cpp_typesupport_target}")
+endif()
 
 install(TARGETS simulator
   ARCHIVE DESTINATION lib

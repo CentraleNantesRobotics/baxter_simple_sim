@@ -1,6 +1,4 @@
-#include <kdl/chainfksolverpos_recursive.hpp>
-#include <kdl/chainiksolverpos_nr.hpp>
-#include <kdl/chainiksolvervel_pinv.hpp>
+#include <Eigen/QR>
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/frames.hpp>
 #include <kdl/frames_io.hpp>
@@ -12,8 +10,10 @@ using namespace baxter_simple_sim;
 using namespace std;
 using namespace KDL;
 
-using IKReq = srv::SolvePositionIK::Request::SharedPtr;
-using IKRes = srv::SolvePositionIK::Response::SharedPtr;
+using IKReq = baxter_core_msgs::srv::SolvePositionIK::Request::SharedPtr;
+using IKRes = baxter_core_msgs::srv::SolvePositionIK::Response::SharedPtr;
+using JacReq = baxter_simple_sim::srv::Jacobian::Request::SharedPtr;
+using JacRes = baxter_simple_sim::srv::Jacobian::Response::SharedPtr;
 
 void updateSeed(const vector<std::string> &names,
                 const vector<double> &req,
@@ -30,12 +30,15 @@ void updateSeed(const vector<std::string> &names,
   }
 }
 
+Solvers::Solvers(const KDL::Chain &chain) : fwd{chain}, ik_v{chain}, ik_p{chain, fwd, ik_v}, jac{chain}
+{}
+
 BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::string limb, Motion motion)
-  : Node(limb + "_ik_solver"), motion{motion}, limb{limb}
+  : Node(limb + "_solvers"), motion{motion}, limb{limb}
 {
   // ensure name ordering for IK
   state.name = {"s0", "s1", "e0", "e1", "w0", "w1", "w2"};
-  state.position.resize(7, 0);
+  state.position = {0, -0.7, 0, 1.59, 0, -0.7, 0};
   state.velocity.resize(7,0);
 
   if(motion == Motion::PUPPET)
@@ -55,7 +58,7 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
   for(auto &name: state.name)
   {
     name = limb + "_" + name;
-    auto joint{model.getJoint(name)};
+    const auto joint{model.getJoint(name)};
     lower.push_back(joint->limits->lower);
     upper.push_back(joint->limits->upper);
     vel_max.push_back(joint->limits->velocity);
@@ -73,14 +76,16 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
   // init chain from kdl tree
   KDL::Tree tree;
   kdl_parser::treeFromUrdfModel(model, tree);
-  std::string base_link = "base";
-  std::string tip_link = limb + "_gripper";
-  tree.getChain(base_link, tip_link, arm_chain);
+  tree.getChain("base", limb + "_gripper", arm_chain);
+  solvers = std::make_unique<Solvers>(arm_chain);
 
   // init ik service
-  ik_service = node->create_service<srv::SolvePositionIK>("/ExternalTools/" + limb + "/PositionKinematicsNode/IKService",
+  ik_service = create_service<baxter_core_msgs::srv::SolvePositionIK>("/ExternalTools/" + limb + "/PositionKinematicsNode/IKService",
                                                           [&](IKReq req, IKRes res){processIK(req,res);});
 
+  // init Jacobian service
+  jacobian_service = create_service<srv::Jacobian>("/robot/limb/" + limb + "/jacobian",
+                                                         [&](JacReq req, JacRes res){processJacobian(req,res);});
 }
 
 void BaxterArmIO::processIK(IKReq req, IKRes res)
@@ -141,10 +146,6 @@ void BaxterArmIO::processIK(IKReq req, IKRes res)
 
 std::vector<double> BaxterArmIO::inverseKinematics(KDL::Vector pos, KDL::Rotation rot, const std::vector<double> &seed)
 {  
-  ChainFkSolverPos_recursive fksolver(arm_chain);
-  ChainIkSolverVel_pinv iksolver_v(arm_chain);
-  ChainIkSolverPos_NR iksolver_p(arm_chain,fksolver,iksolver_v);
-
   // Populate seed
   KDL::JntArray seed_array = JntArray(7);
   for(size_t i = 0; i < 7; ++i)
@@ -152,11 +153,11 @@ std::vector<double> BaxterArmIO::inverseKinematics(KDL::Vector pos, KDL::Rotatio
 
   //Make IK Call
   KDL::Frame goal_pose(rot, pos);
-  KDL::JntArray result_angles = JntArray(7);
-  const auto ik_status = iksolver_p.CartToJnt(seed_array, goal_pose, result_angles);
+  auto result_angles = JntArray(7);  
+  const auto ik_status = solvers->ik_p.CartToJnt(seed_array, goal_pose, result_angles);
 
   std::vector<double> solution;
-  if(ik_status == iksolver_p.E_NOERROR || ik_status == iksolver_p.E_DEGRADED)
+  if(ik_status == solvers->ik_p.E_NOERROR || ik_status == solvers->ik_p.E_DEGRADED)
   {
     solution.resize(7);
     for(size_t i = 0; i < 7; ++i)
@@ -174,8 +175,8 @@ void BaxterArmIO::updateCmd()
     if(idx == state.name.size())
       continue;
 
-    double &pos{state.position[idx]};
-    double &vel{state.velocity[idx]};
+    auto &pos{state.position[idx]};
+    auto &vel{state.velocity[idx]};
     const auto cmd{last_cmd.command[i]};
 
     // what velocity this joint should get
@@ -200,6 +201,42 @@ void BaxterArmIO::updateCmd()
       pos = fut_pos;
     }
   }
+}
+
+void BaxterArmIO::processJacobian(Jacobian::Request::SharedPtr req, Jacobian::Response::SharedPtr res)
+{
+  KDL::JntArray q(7);
+  if(req->position.size() == 7)
+    std::copy(req->position.begin(), req->position.end(), q.data.data());
+  else
+    std::copy(state.position.begin(), state.position.end(), q.data.data());
+
+  // get base Jacobian fJe
+  KDL::Jacobian J(7);
+  solvers->jac.JntToJac(q, J);
+
+  if(req->ee_frame)
+  {
+    // we want eJe, rotate
+    KDL::Frame fMe;
+    solvers->fwd.JntToCart(q, fMe);
+    J.changeBase(fMe.M.Inverse());
+  }
+
+  const auto writeMatrix = [res](const Eigen::Matrix<double,Eigen::Dynamic, Eigen::Dynamic> &M)
+  {
+    auto elem{res->jacobian.begin()};
+    for(int row = 0; row < M.rows(); ++row)
+    {
+      for(int col = 0; col < M.cols(); ++col)
+        *elem++ = M(row,col);
+    }
+  };
+  if(req->inverse)
+    writeMatrix(J.data.completeOrthogonalDecomposition().pseudoInverse());
+  else
+    writeMatrix(J.data);
+
 }
 
 void BaxterArmIO::updateMirror(double t)

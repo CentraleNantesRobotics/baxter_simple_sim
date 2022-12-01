@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>baxter_simple_sim</name>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <description>Baxter kinematic simulation with IK service</description>
   <maintainer email="olivier.kermorgant@ec-nantes.fr">Olivier Kermorgant</maintainer>
   <author>Olivier Kermorgant</author>
@@ -9,11 +9,17 @@
   <license>MIT</license> 
   
   <buildtool_depend>ament_cmake</buildtool_depend>
+
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>baxter_core_msgs</depend>
   <depend>kdl_parser</depend>
-  
+  <depend>builtin_interfaces</depend>
+
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

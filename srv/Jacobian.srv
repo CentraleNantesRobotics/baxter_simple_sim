@@ -1,0 +1,6 @@
+# position should be either empty (use current) or length 7 (use given)
+float64[] position
+bool inverse false
+bool ee_frame false
+---
+float64[42] jacobian
