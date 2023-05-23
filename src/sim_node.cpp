@@ -72,7 +72,7 @@ std::unique_ptr<urdf::Model> BaxterSim::initRSP()
 
   // override rsp's options
   auto rsp_arg{rclcpp::NodeOptions()
-        .arguments({"--ros-args", "-r", "__ns:=/robot", "-p", "robot_description:=" + xml})};
+        .arguments({"--ros-args", "-r", "__ns:=/robot", "-p", "robot_description:='" + xml + "'"})};
   rsp = std::make_shared<robot_state_publisher::RobotStatePublisher>(rsp_arg);
 
   auto model{std::make_unique<urdf::Model>()};
