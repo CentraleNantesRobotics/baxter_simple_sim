@@ -10,6 +10,7 @@ endif()
 
 # ROS 2 pkgs
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -37,7 +38,7 @@ add_executable(simulator
     src/arm_io.cpp)
 target_include_directories(simulator PRIVATE include ${Eigen3_INCLUDE_DIRS})
 ament_target_dependencies(simulator
-    rclcpp sensor_msgs baxter_core_msgs urdf kdl_parser robot_state_publisher)
+    rclcpp sensor_msgs baxter_core_msgs urdf kdl_parser robot_state_publisher ament_index_cpp)
 if(${LEGACY_IDL})
     rosidl_target_interfaces(simulator ${PROJECT_NAME} "rosidl_typesupport_cpp")
 else()
