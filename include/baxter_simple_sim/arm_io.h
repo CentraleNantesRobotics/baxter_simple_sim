@@ -48,6 +48,11 @@ public:
     return std::chrono::milliseconds{static_cast<int>(1000*dt)};
   }
 
+  inline static auto zeroJoints()
+  {
+    zero_joints = true;
+  }
+
   inline auto jointNames() const
   {
     return state.name;
@@ -56,6 +61,15 @@ public:
   inline void update(std::vector<double>::iterator in_full_state, double t = 0)
   {
     std::scoped_lock lock(state_mtx, cmd_mtx);
+
+    if(zero_joints && motion == Motion::CMD && (t - last_cmd_t) > 1.0)
+    {
+     // go back to home
+     last_cmd.names = state.name;
+     last_cmd.mode = msg::JointCommand::POSITION_MODE;
+     last_cmd.command = {0, -0.7, 0, 1.59, 0, -0.7, 0};
+    }
+
     switch (motion)
     {
     case Motion::CMD:
@@ -74,6 +88,7 @@ public:
 private:
 
   static constexpr double dt{0.02};
+  static inline bool zero_joints{false};
   Motion motion;
   std::string limb;
   std::mutex state_mtx, cmd_mtx;
@@ -81,6 +96,7 @@ private:
   sensor_msgs::msg::JointState state;
   std::vector<double> lower, upper, vel_max;
   msg::JointCommand last_cmd;
+  double last_cmd_t{0};
   rclcpp::Subscription<msg::JointCommand>::SharedPtr cmd_sub;
 
   KDL::Chain arm_chain;  

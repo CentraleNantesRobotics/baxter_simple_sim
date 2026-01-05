@@ -24,10 +24,14 @@ def generate_launch_description():
         "lab",
         default_value="",
         description="Special motion for right arm (mirror / puppet)"),
+        DeclareLaunchArgument(
+        "zero_joints",
+        default_value="false",
+        description="Sets the joints to 0 if no command is received for 1 second"),
         Node(
             package='baxter_simple_sim',
             executable='simulator',
-            arguments=[LaunchConfiguration("lab")]),
+            parameters=[{"motion": LaunchConfiguration("lab")}, {"zero_joints": LaunchConfiguration("zero_joints")}]),
         GroupAction([IncludeLaunchDescription(PythonLaunchDescriptionSource(rviz))],
                     condition=IfCondition(LaunchConfiguration("rviz")))
         ])

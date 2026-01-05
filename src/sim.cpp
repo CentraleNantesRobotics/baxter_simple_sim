@@ -12,15 +12,7 @@ int main(int argc, char** argv)
 
   rclcpp::executors::MultiThreadedExecutor exec;
 
-  auto motion{Motion::CMD};
-  for(int i = 0; i < argc; ++i)
-  {
-    const std::string arg{argv[i]};
-    if(arg == "mirror") motion = Motion::MIRROR;
-    else if(arg == "puppet") motion = Motion::PUPPET;
-  }
-
-  auto sim{std::make_shared<BaxterSim>(motion)};
+  auto sim{std::make_shared<BaxterSim>()};
   sim->addNodesTo(exec);
   exec.spin();
 }

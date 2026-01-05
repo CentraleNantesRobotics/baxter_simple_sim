@@ -12,7 +12,7 @@ class BaxterSim : public rclcpp::Node
 {
 
 public:
-  BaxterSim(Motion motion);
+  BaxterSim();
   inline void addNodesTo(rclcpp::Executor &exec)
   {
     exec.add_node(shared_from_this());

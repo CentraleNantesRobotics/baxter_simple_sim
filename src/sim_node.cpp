@@ -1,16 +1,18 @@
 #include <baxter_simple_sim/sim_node.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <urdf_parser/urdf_parser.h>
-#include <fstream>
 
 using namespace baxter_simple_sim;
 
 using namespace std::chrono_literals;
 
-BaxterSim::BaxterSim(Motion motion) : Node("simulator")
+BaxterSim::BaxterSim() : Node("simulator")
 {
   // get baxter description
   const auto model{initRSP()};
+
+  const auto motion_arg{declare_parameter("motion", "none")};
+  const auto zero_joints{declare_parameter("zero_joints", false)};
 
   for(const auto &[name, joint]: model->joints_)
   {
@@ -27,6 +29,13 @@ BaxterSim::BaxterSim(Motion motion) : Node("simulator")
   torso_joints = state.name.size();
 
   // init joint groups
+  auto motion{Motion::CMD};
+  if(motion_arg == "mirror") motion = Motion::MIRROR;
+  else if(motion_arg == "puppet") motion = Motion::PUPPET;
+
+  if(zero_joints)
+    BaxterArmIO::zeroJoints();
+
   left = std::make_shared<BaxterArmIO>(this, *model, "left", motion);
   right = std::make_shared<BaxterArmIO>(this, *model, "right", motion);
 
@@ -82,6 +91,6 @@ std::unique_ptr<urdf::Model> BaxterSim::initRSP()
 
 void BaxterSim::updateSim()
 {
-  left->update(state.position.begin()+torso_joints);
+  left->update(state.position.begin()+torso_joints, get_clock()->now().seconds());
   right->update(state.position.begin()+torso_joints+7, get_clock()->now().seconds());
 }

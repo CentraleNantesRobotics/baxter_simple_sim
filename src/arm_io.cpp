@@ -46,7 +46,6 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
     // singularity-free configuration for IK
     if(limb == "left")
     {
-      //state.position = {-0.05183482296524736, -0.8682037556901855, -0.9476424476835772, 1.685625905154571, -0.7588301888902473, 0.999285765226626, 0.3354836773966444};
       state.position = {-0.10266471341792811, -0.05772519794064627, -0.36909985265803286, 0.7955637684523007, -1.1302109919350245, 1.0871143114989947, 0};
     }
     else
@@ -70,7 +69,7 @@ BaxterArmIO::BaxterArmIO(rclcpp::Node* node, const urdf::Model &model, std::stri
     const auto topic{"/robot/limb/" + limb + "/joint_command"};
     cmd_sub = node->create_subscription<msg::JointCommand>
         (topic, 10, [this](msg::JointCommand::SharedPtr msg)
-    {std::lock_guard lk(cmd_mtx);last_cmd = *msg;});
+    {std::lock_guard lk(cmd_mtx);last_cmd = *msg;last_cmd_t = this->now().seconds();});
   }
 
   // init chain from kdl tree
