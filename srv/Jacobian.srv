@@ -1,6 +1,10 @@
 # position should be either empty (use current) or length 7 (use given)
 float64[] position
+# if the Jacobian inverse should be returned
 bool inverse false
+# if the Jacobian should be expressed in the end-effector (e.g. gripper) frame
 bool ee_frame false
 ---
+# the 42 values of the Jacobian matrix, row-major
+# Jacobian is 6x7, or 7x6 if inverted
 float64[42] jacobian
